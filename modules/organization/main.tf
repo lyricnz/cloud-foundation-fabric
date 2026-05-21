@@ -18,7 +18,7 @@ locals {
   _ctx = {
     for k, v in var.context : k => {
       for kk, vv in v : "${local.ctx_p}${k}:${kk}" => vv
-    } if !endswith(k, "_vars")
+    } if !endswith(k, "_vars") && k != "iam_role_sets"
   }
   # add service agents into the iam_principals context namespace
   ctx = merge(local._ctx, {

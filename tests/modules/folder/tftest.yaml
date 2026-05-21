@@ -18,6 +18,7 @@ tests:
   context:
   iam_by_principals_additive:
   iam_by_principals_conditional:
+  iam_role_sets:
   org_policies:
   org_policies_factory:
     inventory:

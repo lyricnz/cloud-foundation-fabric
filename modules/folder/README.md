@@ -5,6 +5,7 @@ This module allows the creation and management of folders, including support for
 <!-- BEGIN TOC -->
 - [Basic example with IAM bindings](#basic-example-with-iam-bindings)
 - [IAM](#iam)
+  - [IAM Role Sets](#iam-role-sets)
   - [Conditional IAM by Principals](#conditional-iam-by-principals)
 - [Assured Workload Folder](#assured-workload-folder)
 - [Privileged Access Manager (PAM) Entitlements](#privileged-access-manager-pam-entitlements)
@@ -68,6 +69,40 @@ IAM is managed via several variables that implement different features and level
 The authoritative and additive approaches can be used together, provided different roles are managed by each. Some care must also be taken with the `iam_by_principals` variable to ensure that variable keys are static values, so that Terraform is able to compute the dependency graph.
 
 IAM also supports variable interpolation for both roles and principals, via the respective attributes in the `var.context` variable. Refer to the [project module](../project/README.md#iam) for examples of the IAM interface.
+
+### IAM Role Sets
+
+`var.context.iam_role_sets` allows naming a list of roles and referencing it by name wherever a list of roles is accepted. This avoids repeating the same role combinations across multiple principals or bindings.
+
+A role set is referenced using the `$iam_role_sets:name` syntax, which follows the same interpolation convention as other context attributes. Role set references are expanded before bindings are evaluated, so members assigned to a set are merged with any other members assigned to the individual roles.
+
+Role sets are supported in the role-list positions of `iam`, `iam_by_principals`, `iam_by_principals_additive`, and `iam_by_principals_conditional`.
+
+```hcl
+module "folder" {
+  source = "./fabric/modules/folder"
+  parent = var.folder_id
+  name   = "Folder name"
+  context = {
+    iam_role_sets = {
+      viewer_plus = ["roles/viewer", "roles/browser"]
+    }
+    iam_principals = {
+      alice = "user:alice@example.com"
+      bob   = "user:bob@example.com"
+    }
+  }
+  # expands to one authoritative binding each for roles/viewer and roles/browser
+  iam = {
+    "$iam_role_sets:viewer_plus" = ["$iam_principals:alice"]
+  }
+  # role set in a principal-keyed list, merged with the iam bindings above
+  iam_by_principals = {
+    "$iam_principals:bob" = ["$iam_role_sets:viewer_plus"]
+  }
+}
+# tftest modules=1 resources=3 inventory=iam-role-sets.yaml
+```
 
 ### Conditional IAM by Principals
 
@@ -810,10 +845,10 @@ module "folder" {
 | [autokey_config](variables.tf#L144) | Enable autokey support for this folder's children. Project accepts either project id or number. | <code>object&#40;&#123;&#8230;&#125;&#41;</code> |  | <code>null</code> |
 | [contacts](variables.tf#L153) | List of essential contacts for this resource. Must be in the form EMAIL -> [NOTIFICATION_TYPES]. Valid notification types are ALL, SUSPENSION, SECURITY, TECHNICAL, BILLING, LEGAL, PRODUCT_UPDATES. | <code>map&#40;list&#40;string&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
 | [context](variables.tf#L172) | Context-specific interpolations. | <code>object&#40;&#123;&#8230;&#125;&#41;</code> |  | <code>&#123;&#125;</code> |
-| [deletion_protection](variables.tf#L197) | Deletion protection setting for this folder. | <code>bool</code> |  | <code>false</code> |
-| [factories_config](variables.tf#L203) | Paths to data files and folders that enable factory functionality. | <code>object&#40;&#123;&#8230;&#125;&#41;</code> |  | <code>&#123;&#125;</code> |
-| [firewall_policy](variables.tf#L215) | Hierarchical firewall policy to associate to this folder. | <code>object&#40;&#123;&#8230;&#125;&#41;</code> |  | <code>null</code> |
-| [folder_create](variables.tf#L226) | Create folder. When set to false, uses id to reference an existing folder. | <code>bool</code> |  | <code>true</code> |
+| [deletion_protection](variables.tf#L198) | Deletion protection setting for this folder. | <code>bool</code> |  | <code>false</code> |
+| [factories_config](variables.tf#L204) | Paths to data files and folders that enable factory functionality. | <code>object&#40;&#123;&#8230;&#125;&#41;</code> |  | <code>&#123;&#125;</code> |
+| [firewall_policy](variables.tf#L216) | Hierarchical firewall policy to associate to this folder. | <code>object&#40;&#123;&#8230;&#125;&#41;</code> |  | <code>null</code> |
+| [folder_create](variables.tf#L227) | Create folder. When set to false, uses id to reference an existing folder. | <code>bool</code> |  | <code>true</code> |
 | [iam](variables-iam.tf#L17) | IAM bindings in {ROLE => [MEMBERS]} format. | <code>map&#40;list&#40;string&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
 | [iam_bindings](variables-iam.tf#L24) | Authoritative IAM bindings in {KEY => {role = ROLE, members = [], condition = {}}}. Keys are arbitrary. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
 | [iam_bindings_additive](variables-iam.tf#L39) | Individual additive IAM bindings. Keys are arbitrary. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
@@ -821,19 +856,19 @@ module "folder" {
 | [iam_by_principals_additive](variables-iam.tf#L54) | Additive IAM binding in {PRINCIPAL => [ROLES]} format. Principals need to be statically defined to avoid errors. Merged internally with the `iam_bindings_additive` variable. | <code>map&#40;list&#40;string&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
 | [iam_by_principals_conditional](variables-iam.tf#L68) | Authoritative IAM binding in {PRINCIPAL => {roles = [roles], condition = {cond}}} format. Principals need to be statically defined to avoid errors. Condition is required. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
 | [iam_deny_policies](variables-iam.tf#L98) | IAM Deny policies to be applied to the folder. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
-| [id](variables.tf#L236) | Folder ID in case you use folder_create=false. | <code>string</code> |  | <code>null</code> |
+| [id](variables.tf#L237) | Folder ID in case you use folder_create=false. | <code>string</code> |  | <code>null</code> |
 | [logging_data_access](variables-logging.tf#L17) | Control activation of data access logs. The special 'allServices' key denotes configuration for all services. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
 | [logging_exclusions](variables-logging.tf#L28) | Logging exclusions for this folder in the form {NAME -> FILTER}. | <code>map&#40;string&#41;</code> |  | <code>&#123;&#125;</code> |
 | [logging_settings](variables-logging.tf#L35) | Default settings for logging resources. | <code>object&#40;&#123;&#8230;&#125;&#41;</code> |  | <code>null</code> |
 | [logging_sinks](variables-logging.tf#L45) | Logging sinks to create for the folder. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
-| [name](variables.tf#L242) | Folder name. | <code>string</code> |  | <code>null</code> |
-| [org_policies](variables.tf#L248) | Organization policies applied to this folder keyed by policy name. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
+| [name](variables.tf#L243) | Folder name. | <code>string</code> |  | <code>null</code> |
+| [org_policies](variables.tf#L249) | Organization policies applied to this folder keyed by policy name. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
 | [pam_entitlements](variables-pam.tf#L17) | Privileged Access Manager entitlements for this resource, keyed by entitlement ID. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
-| [parent](variables.tf#L276) | Parent in folders/folder_id or organizations/org_id format. | <code>string</code> |  | <code>null</code> |
+| [parent](variables.tf#L277) | Parent in folders/folder_id or organizations/org_id format. | <code>string</code> |  | <code>null</code> |
 | [scc_mute_configs](variables-scc.tf#L17) | SCC mute configurations keyed by name. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
 | [scc_sha_custom_modules](variables-scc.tf#L27) | SCC custom modules keyed by module name. | <code>map&#40;object&#40;&#123;&#8230;&#125;&#41;&#41;</code> |  | <code>&#123;&#125;</code> |
-| [service_agents_config](variables.tf#L290) | Service agents configuration. | <code>object&#40;&#123;&#8230;&#125;&#41;</code> |  | <code>&#123;&#125;</code> |
-| [tag_bindings](variables.tf#L300) | Tag bindings for this folder, in key => tag value id format. | <code>map&#40;string&#41;</code> |  | <code>null</code> |
+| [service_agents_config](variables.tf#L291) | Service agents configuration. | <code>object&#40;&#123;&#8230;&#125;&#41;</code> |  | <code>&#123;&#125;</code> |
+| [tag_bindings](variables.tf#L301) | Tag bindings for this folder, in key => tag value id format. | <code>map&#40;string&#41;</code> |  | <code>null</code> |
 
 ## Outputs
 

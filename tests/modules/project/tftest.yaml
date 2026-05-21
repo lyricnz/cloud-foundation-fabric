@@ -21,6 +21,7 @@ tests:
   context:
   iam_by_principals_additive:
   iam_by_principals_conditional:
+  iam_role_sets:
   no_parent:
   no_prefix:
   org_policies:
