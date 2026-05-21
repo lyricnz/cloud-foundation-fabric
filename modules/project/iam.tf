@@ -29,12 +29,37 @@ locals {
       file("${local._custom_roles_path}/${f}")
     )
   }
+  # expand any "$iam_role_sets:name" reference in a roles list to the set's constituent roles
+  _iam_role_sets = {
+    for k, v in var.context.iam_role_sets :
+    "${local.ctx_p}iam_role_sets:${k}" => v
+  }
+  _expand_roles = {
+    for k, v in var.iam : k => v
+    if !startswith(k, "${local.ctx_p}iam_role_sets:")
+  }
+  # roles that are actually role-set references in var.iam keys
+  _iam_from_role_sets = merge([
+    for k, members in var.iam :
+    {
+      for role in lookup(local._iam_role_sets, k, []) :
+      role => members
+    }
+    if startswith(k, "${local.ctx_p}iam_role_sets:")
+  ]...)
+  # expand role-set references in var.iam_by_principals role lists
+  _iam_by_principals_expanded = {
+    for principal, roles in var.iam_by_principals : principal => distinct(flatten([
+      for role in roles :
+      startswith(role, "${local.ctx_p}iam_role_sets:") ? lookup(local._iam_role_sets, role, [role]) : [role]
+    ]))
+  }
   # get the set of IAM by principals roles
-  _iam_principal_roles = distinct(flatten(values(var.iam_by_principals)))
+  _iam_principal_roles = distinct(flatten(values(local._iam_by_principals_expanded)))
   # recompose the principals under each role
   _iam_principals = {
     for r in local._iam_principal_roles : r => [
-      for k, v in var.iam_by_principals :
+      for k, v in local._iam_by_principals_expanded :
       k if try(index(v, r), null) != null
     ]
   }
@@ -72,9 +97,10 @@ locals {
     }
   )
   iam = {
-    for role in distinct(concat(keys(var.iam), keys(local._iam_principals))) :
+    for role in distinct(concat(keys(local._expand_roles), keys(local._iam_from_role_sets), keys(local._iam_principals))) :
     role => concat(
-      try(var.iam[role], []),
+      try(local._expand_roles[role], []),
+      try(local._iam_from_role_sets[role], []),
       try(local._iam_principals[role], []),
       (
         role == "roles/editor" && var.service_agents_config.grant_service_agent_editor
@@ -83,10 +109,17 @@ locals {
       )
     )
   }
+  # expand role-set references in var.iam_by_principals_additive role lists
+  _iam_by_principals_additive_expanded = {
+    for principal, roles in var.iam_by_principals_additive : principal => distinct(flatten([
+      for role in roles :
+      startswith(role, "${local.ctx_p}iam_role_sets:") ? lookup(local._iam_role_sets, role, [role]) : [role]
+    ]))
+  }
   iam_bindings_additive = merge(
     var.iam_bindings_additive,
     [
-      for principal, roles in var.iam_by_principals_additive : {
+      for principal, roles in local._iam_by_principals_additive_expanded : {
         for role in roles :
         "iam-bpa:${principal}-${role}" => {
           member    = principal
@@ -96,8 +129,18 @@ locals {
       }
     ]...
   )
+  # expand role-set references in var.iam_by_principals_conditional role lists
+  _iam_by_principals_conditional_expanded = {
+    for principal, config in var.iam_by_principals_conditional : principal => {
+      roles = distinct(flatten([
+        for role in config.roles :
+        startswith(role, "${local.ctx_p}iam_role_sets:") ? lookup(local._iam_role_sets, role, [role]) : [role]
+      ]))
+      condition = config.condition
+    }
+  }
   _iam_bindings_conditional = flatten([
-    for principal, config in var.iam_by_principals_conditional : [
+    for principal, config in local._iam_by_principals_conditional_expanded : [
       for role in config.roles : {
         principal = principal
         role      = role

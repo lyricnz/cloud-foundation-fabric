@@ -1,0 +1,110 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+values:
+  google_project.project[0]:
+    auto_create_network: false
+    billing_account: null
+    deletion_policy: DELETE
+    effective_labels:
+      goog-terraform-provisioned: 'true'
+    folder_id: null
+    labels: null
+    name: my-project
+    org_id: null
+    project_id: my-project
+    tags: null
+    terraform_labels:
+      goog-terraform-provisioned: 'true'
+    timeouts: null
+  google_project_iam_binding.authoritative["roles/browser"]:
+    condition: []
+    members:
+    - serviceAccount:sa@project.iam.gserviceaccount.com
+    - user:user@example.com
+    project: my-project
+    role: roles/browser
+  google_project_iam_binding.authoritative["roles/viewer"]:
+    condition: []
+    members:
+    - serviceAccount:sa@project.iam.gserviceaccount.com
+    - user:user@example.com
+    project: my-project
+    role: roles/viewer
+  google_project_iam_binding.bindings["iam-bpc:roles/browser-expires_soon"]:
+    condition:
+    - description: null
+      expression: request.time < timestamp("2027-01-01T00:00:00Z")
+      title: expires_soon
+    members:
+    - serviceAccount:sa@project.iam.gserviceaccount.com
+    project: my-project
+    role: roles/browser
+  google_project_iam_binding.bindings["iam-bpc:roles/viewer-expires_soon"]:
+    condition:
+    - description: null
+      expression: request.time < timestamp("2027-01-01T00:00:00Z")
+      title: expires_soon
+    members:
+    - serviceAccount:sa@project.iam.gserviceaccount.com
+    project: my-project
+    role: roles/viewer
+  google_project_iam_member.bindings["iam-bpa:$iam_principals:myuser-roles/browser"]:
+    condition: []
+    member: user:user@example.com
+    project: my-project
+    role: roles/browser
+  google_project_iam_member.bindings["iam-bpa:$iam_principals:myuser-roles/viewer"]:
+    condition: []
+    member: user:user@example.com
+    project: my-project
+    role: roles/viewer
+
+counts:
+  google_project: 1
+  google_project_iam_binding: 4
+  google_project_iam_member: 2
+  modules: 0
+  resources: 7
+
+outputs:
+  alert_ids: {}
+  asset_search_results: {}
+  bigquery_reservations:
+    assignments: {}
+    reservations: {}
+  custom_role_id: {}
+  custom_roles: {}
+  default_service_accounts: __missing__
+  id: my-project
+  kms_autokeys: {}
+  name: my-project
+  network_tag_keys: {}
+  network_tag_values: {}
+  notification_channel_names: {}
+  notification_channels: {}
+  number: __missing__
+  organization_policies_ids: {}
+  project_id: my-project
+  quota_configs: {}
+  quotas: {}
+  scc_custom_sha_modules_ids: {}
+  service_agents: __missing__
+  services: []
+  sink_writer_identities: {}
+  tag_keys: {}
+  tag_values: {}
+  workload_identity_pool_ids: {}
+  workload_identity_provider_ids: {}
+  workload_identity_providers: {}
