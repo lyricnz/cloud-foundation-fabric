@@ -65,10 +65,17 @@ locals {
       try(local._iam_principals[role], [])
     )
   }
+  # expand role-set references in var.iam_by_principals_additive role lists
+  _iam_by_principals_additive_expanded = {
+    for principal, roles in var.iam_by_principals_additive : principal => distinct(flatten([
+      for role in roles :
+      startswith(role, "${local.ctx_p}iam_role_sets:") ? lookup(local._iam_role_sets, role, [role]) : [role]
+    ]))
+  }
   iam_bindings_additive = merge(
     var.iam_bindings_additive,
     [
-      for principal, roles in var.iam_by_principals_additive : {
+      for principal, roles in local._iam_by_principals_additive_expanded : {
         for role in roles :
         "iam-bpa:${principal}-${role}" => {
           member    = principal
@@ -78,9 +85,19 @@ locals {
       }
     ]...
   )
+  # expand role-set references in var.iam_by_principals_conditional role lists
+  _iam_by_principals_conditional_expanded = {
+    for principal, config in var.iam_by_principals_conditional : principal => {
+      roles = distinct(flatten([
+        for role in config.roles :
+        startswith(role, "${local.ctx_p}iam_role_sets:") ? lookup(local._iam_role_sets, role, [role]) : [role]
+      ]))
+      condition = config.condition
+    }
+  }
   # convert all the iam_by_principals_conditional into a flat list of bindings
   _iam_bindings_conditional = flatten([
-    for principal, config in var.iam_by_principals_conditional : [
+    for principal, config in local._iam_by_principals_conditional_expanded : [
       for role in config.roles : {
         principal = principal
         role      = role

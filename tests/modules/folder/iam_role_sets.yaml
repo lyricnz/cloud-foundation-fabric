@@ -13,7 +13,7 @@
 # limitations under the License.
 
 values:
-  # "$iam_role_sets:viewer_plus" expands to two bindings; members from iam and iam_by_principals are merged per role
+  # var.iam key + var.iam_by_principals value: both expand and members are merged per role
   google_folder_iam_binding.authoritative["roles/browser"]:
     condition: []
     members:
@@ -26,9 +26,36 @@ values:
     - serviceAccount:sa@project.iam.gserviceaccount.com
     - user:user@example.com
     role: roles/viewer
+  # var.iam_by_principals_conditional: role set expands to one conditional binding per role
+  google_folder_iam_binding.bindings["iam-bpc:roles/browser-expires_soon"]:
+    condition:
+    - description: null
+      expression: request.time < timestamp("2027-01-01T00:00:00Z")
+      title: expires_soon
+    members:
+    - serviceAccount:sa@project.iam.gserviceaccount.com
+    role: roles/browser
+  google_folder_iam_binding.bindings["iam-bpc:roles/viewer-expires_soon"]:
+    condition:
+    - description: null
+      expression: request.time < timestamp("2027-01-01T00:00:00Z")
+      title: expires_soon
+    members:
+    - serviceAccount:sa@project.iam.gserviceaccount.com
+    role: roles/viewer
+  # var.iam_by_principals_additive: role set expands to one additive member binding per role
+  google_folder_iam_member.bindings["iam-bpa:$iam_principals:myuser-roles/browser"]:
+    condition: []
+    member: user:user@example.com
+    role: roles/browser
+  google_folder_iam_member.bindings["iam-bpa:$iam_principals:myuser-roles/viewer"]:
+    condition: []
+    member: user:user@example.com
+    role: roles/viewer
 
 counts:
   google_folder: 1
-  google_folder_iam_binding: 2
+  google_folder_iam_binding: 4
+  google_folder_iam_member: 2
   modules: 0
-  resources: 3
+  resources: 7
